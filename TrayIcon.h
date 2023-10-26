@@ -28,11 +28,11 @@ struct ITrayIconListener;
 class CTrayIconMenuItem
 {
 public:
-	CTrayIconMenuItem(std::string id, std::string caption) :
+	CTrayIconMenuItem(std::string id, std::wstring caption) :
 		m_id(id), m_caption(caption) {}
 
 	std::string m_id;
-	std::string m_caption;
+	std::wstring m_caption;
 };
 
 
@@ -41,12 +41,12 @@ public:
 class CTrayIcon
 {
 public:
-	CTrayIcon(const char* name="tray_icon", bool visible=false, HICON hIcon=NULL, bool destroy_icon_in_destructor=false);
+	CTrayIcon(const wchar_t* name=L"tray_icon", bool visible=false, HICON hIcon=NULL, bool destroy_icon_in_destructor=false);
 	// destroys the current m_hIcon if set
 	virtual ~CTrayIcon();
 
-	virtual void SetName(const char* name);
-	const char* GetName() const			{ return m_Name.c_str(); }
+	virtual void SetName(const wchar_t* name);
+	const wchar_t* GetName() const			{ return m_Name.c_str(); }
 
 	virtual bool SetVisible(bool visible);
 	bool IsVisible() const					{ return m_Visible; }
@@ -67,7 +67,7 @@ public:
 		eTI_Error			// NIIF_ERROR(3)
 	};
 	// ShowBalloonTooltip() works only on win2k and later
-	bool ShowBalloonTooltip(const char* title, const char* msg, ETooltipIcon icon=eTI_None);
+	bool ShowBalloonTooltip(const wchar_t* title, const wchar_t* msg, ETooltipIcon icon=eTI_None);
 
 	typedef void (*POnMessageFunc)(CTrayIcon* pTrayIcon, UINT uMsg);
 	void SetListener(POnMessageFunc pOnMessageFunc) { m_pOnMessageFunc = pOnMessageFunc; }
@@ -89,7 +89,7 @@ protected:
 	virtual void OnMessage(UINT uMsg);
 
 private:
-	void FillNotifyIconData(NOTIFYICONDATAA& data);
+	void FillNotifyIconData(NOTIFYICONDATAW& data);
 	// Never returns NULL! If GetIcon()==NULL, then this returns a system icon
 	HICON InternalGetIcon() const;
 	bool AddIcon();
@@ -98,7 +98,7 @@ private:
 
 private:
 	UINT m_Id;
-	std::string m_Name;
+	std::wstring m_Name;
 	bool m_Visible;
 	HICON m_hIcon;
 	bool m_DestroyIconInDestructor;

@@ -191,7 +191,7 @@ HWND CTrayIcon::GetMessageProcessorHWND()
 	return hWnd;
 }
 
-CTrayIcon::CTrayIcon(const char *name, bool visible, HICON hIcon, bool destroy_icon_in_destructor)
+CTrayIcon::CTrayIcon(const wchar_t *name, bool visible, HICON hIcon, bool destroy_icon_in_destructor)
 	: m_Id(GetNextTrayIconId()), m_Name(name), m_hIcon(hIcon), m_Visible(false), m_DestroyIconInDestructor(destroy_icon_in_destructor), m_pOnMessageFunc(NULL), m_pListener(NULL)
 {
 	GetIdToTrayIconMap()[m_Id] = this;
@@ -212,24 +212,24 @@ HICON CTrayIcon::InternalGetIcon() const
 
 bool CTrayIcon::AddIcon()
 {
-	NOTIFYICONDATAA data;
+	NOTIFYICONDATAW data;
 	FillNotifyIconData(data);
 	data.uFlags |= NIF_MESSAGE | NIF_ICON | NIF_TIP;
 	data.uCallbackMessage = TRAY_WINDOW_MESSAGE;
 	data.hIcon = InternalGetIcon();
 
-	size_t tip_len = max(sizeof(data.szTip) - 1, strlen(m_Name.c_str()));
+	size_t tip_len = max(sizeof(data.szTip) - 1, wcslen(m_Name.c_str()));
 	memcpy(data.szTip, m_Name.c_str(), tip_len);
 	data.szTip[tip_len] = 0;
 
-	return FALSE != Shell_NotifyIconA(NIM_ADD, &data);
+	return FALSE != Shell_NotifyIconW(NIM_ADD, &data);
 }
 
 bool CTrayIcon::RemoveIcon()
 {
-	NOTIFYICONDATAA data;
+	NOTIFYICONDATAW data;
 	FillNotifyIconData(data);
-	return FALSE != Shell_NotifyIconA(NIM_DELETE, &data);
+	return FALSE != Shell_NotifyIconW(NIM_DELETE, &data);
 }
 
 void CTrayIcon::OnTaskbarCreated()
@@ -238,20 +238,21 @@ void CTrayIcon::OnTaskbarCreated()
 		AddIcon();
 }
 
-void CTrayIcon::SetName(const char *name)
+void CTrayIcon::SetName(const wchar_t *name)
 {
 	m_Name = name;
 	if (m_Visible)
 	{
-		NOTIFYICONDATAA data;
+		NOTIFYICONDATAW data;
 		FillNotifyIconData(data);
 		data.uFlags |= NIF_TIP;
 
-		size_t tip_len = max(sizeof(data.szTip) - 1, strlen(name));
-		memcpy(data.szTip, name, tip_len);
-		data.szTip[tip_len] = 0;
+		wcscpy_s(data.szTip, name);
+		//size_t tip_len = max(sizeof(data.szTip) - 1, wcslen(name));
+		//memcpy(data.szTip, name, tip_len);
+		//data.szTip[tip_len] = 0;
 
-		Shell_NotifyIconA(NIM_MODIFY, &data);
+		Shell_NotifyIconW(NIM_MODIFY, &data);
 	}
 }
 
@@ -275,15 +276,15 @@ void CTrayIcon::SetIcon(HICON hNewIcon, bool destroy_current_icon)
 
 	if (m_Visible)
 	{
-		NOTIFYICONDATAA data;
+		NOTIFYICONDATAW data;
 		FillNotifyIconData(data);
 		data.uFlags |= NIF_ICON;
 		data.hIcon = InternalGetIcon();
-		Shell_NotifyIconA(NIM_MODIFY, &data);
+		Shell_NotifyIconW(NIM_MODIFY, &data);
 	}
 }
 
-bool CTrayIcon::ShowBalloonTooltip(const char *title, const char *msg, ETooltipIcon icon)
+bool CTrayIcon::ShowBalloonTooltip(const wchar_t *title, const wchar_t *msg, ETooltipIcon icon)
 {
 #ifndef NOTIFYICONDATA_V2_SIZE
 	return false;
@@ -291,17 +292,19 @@ bool CTrayIcon::ShowBalloonTooltip(const char *title, const char *msg, ETooltipI
 	if (!m_Visible)
 		return false;
 
-	NOTIFYICONDATAA data;
+	
+
+	NOTIFYICONDATAW data;
 	FillNotifyIconData(data);
 	data.cbSize = NOTIFYICONDATAA_V2_SIZE; // win2k and later
 	data.uFlags |= NIF_INFO;
 	data.dwInfoFlags = icon;
 	data.uTimeout = 10000; // deprecated as of Windows Vista, it has a min(10000) and max(30000) value on previous Windows versions.
 
-	strcpy_s(data.szInfoTitle, title);
-	strcpy_s(data.szInfo, msg);
+	wcscpy_s(data.szInfoTitle, title);
+	wcscpy_s(data.szInfo, msg);
 
-	return FALSE != Shell_NotifyIconA(NIM_MODIFY, &data);
+	return FALSE != Shell_NotifyIconW(NIM_MODIFY, &data);
 #endif
 }
 
@@ -313,7 +316,7 @@ void CTrayIcon::OnMessage(UINT uMsg)
 		m_pListener->OnTrayIconMessage(this, uMsg);
 }
 
-void CTrayIcon::FillNotifyIconData(NOTIFYICONDATAA &data)
+void CTrayIcon::FillNotifyIconData(NOTIFYICONDATAW &data)
 {
 	memset(&data, 0, sizeof(data));
 	// the basic functions need only V1
@@ -381,7 +384,7 @@ void CTrayIconContainer::Stop(const CallbackInfo& info)
 	}
 	if (m_OnBalloonClick) {
 		m_OnBalloonClick.Release();
-		m_OnBalloonClick = nullptr;
+		m_OnBalloonClick = nullptr; 
 	}
 	PostThreadMessage(GetThreadId(m_worker->native_handle()), WM_QUIT, NULL, NULL);
 	m_worker->join();
@@ -402,8 +405,9 @@ void CTrayIconContainer::SetIconPath(const CallbackInfo& info)
 }
 void CTrayIconContainer::SetTitle(const CallbackInfo& info)
 {
-	std::string title = info[0].As<String>();
-	m_tray.SetName(title.c_str());
+	std::u16string title = info[0].As<String>();
+	std::wstring wtitle = reinterpret_cast<LPCWSTR>(title.c_str());
+	m_tray.SetName(wtitle.c_str());
 }
 void CTrayIconContainer::Start(const CallbackInfo& info)
 {
@@ -455,7 +459,7 @@ void CTrayIconContainer::PopupMenu()
 		int i = 0;
 		for (auto const &item : m_menuItems)
 		{
-			AppendMenuA(menu, MF_STRING, i++, item.m_caption.c_str());
+			AppendMenuW(menu, MF_STRING, i++, item.m_caption.c_str());
 		}
 		UINT cmd = TrackPopupMenu(menu, TPM_RETURNCMD | TPM_RIGHTBUTTON, pt.x, pt.y, 0, m_hwnd, NULL);
 		m_OnMenuItem.BlockingCall(new std::string(m_menuItems[cmd].m_id));
@@ -465,8 +469,9 @@ void CTrayIconContainer::PopupMenu()
 void CTrayIconContainer::AddMenuItem(const CallbackInfo& info)
 {
 	std::string id = info[0].As<String>();
-	std::string caption = info[1].As<String>();
-	m_menuItems.push_back(CTrayIconMenuItem(id, caption));
+	std::u16string caption = info[1].As<Napi::String>();
+	std::wstring wcaption = reinterpret_cast<LPCWSTR>(caption.c_str());
+	m_menuItems.push_back(CTrayIconMenuItem(id, wcaption));
 }
 
 void CTrayIconContainer::OnMenuItem(const CallbackInfo& info)
@@ -482,7 +487,11 @@ void CTrayIconContainer::OnMenuItem(const CallbackInfo& info)
 void CTrayIconContainer::ShowBalloon(const CallbackInfo& info)
 {
 	std::string title = info[0].As<String>();
+	std::wstring wtitle = reinterpret_cast<LPCWSTR>(title.c_str());
+
 	std::string text = info[1].As<String>();
+	std::wstring wtext = reinterpret_cast<LPCWSTR>(text.c_str());
+
 	int timeout = info[2].As<Number>();
 	Function cb = info[3].As<Function>();
 
@@ -493,5 +502,5 @@ void CTrayIconContainer::ShowBalloon(const CallbackInfo& info)
 	}
 
 	m_OnBalloonClick = TSFNOptString::New(info.Env(), cb, "wintrayicon_ShowBalloon", 0, 1, context);
-	m_tray.ShowBalloonTooltip(title.c_str(), text.c_str());
+	m_tray.ShowBalloonTooltip(wtitle.c_str(), wtext.c_str());
 }

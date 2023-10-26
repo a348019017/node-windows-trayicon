@@ -1,4 +1,4 @@
-const { CTrayIconContainer } = require("bindings")("addon");
+const { CTrayIconContainer } = require("./build/Release/addon.node");
 
 class WindowsTrayicon {
 	constructor(options) {

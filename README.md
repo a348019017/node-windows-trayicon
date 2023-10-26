@@ -1,3 +1,7 @@
+# New
+add chinese supported
+
+
 # windows-trayicon
 Native addon to add a windows tray icon with menu, built on windows-native libraries (no .NET dependency)  
 
